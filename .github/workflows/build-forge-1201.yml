@@ -1,0 +1,35 @@
+name: Build Forge 1.20.1 JAR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Forge 1.20.1
+        run: ./gradlew :1.20.1-forge:build
+
+      - name: Upload playable JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: voxy-forge-1.20.1
+          path: versions/1.20.1-forge/build/libs/voxy-*-legacyforge.jar
+          if-no-files-found: error
+          retention-days: 90
