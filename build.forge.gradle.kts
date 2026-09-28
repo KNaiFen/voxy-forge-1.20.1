@@ -4,6 +4,11 @@ import me.cortex.voxy.gradle.prop
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.bundling.Jar
 import net.neoforged.moddevgradle.legacyforge.dsl.MixinExtension
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 extra["loaderName"] = "legacyforge"
 extra["loaderDisplayName"] = "LegacyForge"
@@ -219,4 +224,51 @@ tasks.named<Jar>("jar") {
         )
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+if (project.name == "1.20.1-forge") {
+    tasks.named("jarJar") {
+        val nativeFiles = mapOf(
+            "rocksdbjni-$rocksdbVersion.jar" to setOf(
+                "librocksdbjni-win64.dll",
+                "librocksdbjni-linux64.so",
+                "librocksdbjni-linux64-musl.so",
+            ),
+            "sqlite-jdbc-$sqliteJdbcVersion.jar" to setOf(
+                "org/sqlite/native/Windows/x86_64/sqlitejdbc.dll",
+                "org/sqlite/native/Linux/x86_64/libsqlitejdbc.so",
+                "org/sqlite/native/Linux-Musl/x86_64/libsqlitejdbc.so",
+            ),
+            "lz4-java-$lz4Version.jar" to setOf(
+                "net/jpountz/util/win32/amd64/liblz4-java.so",
+                "net/jpountz/util/linux/amd64/liblz4-java.so",
+            ),
+        )
+        inputs.property("nativeFiles", nativeFiles)
+        doLast {
+            nativeFiles.forEach { (name, keep) ->
+                val jar = layout.buildDirectory.file("generated/jarJar/META-INF/jarjar/$name").get().asFile.toPath()
+                val temporary = jar.resolveSibling("$name.tmp")
+                ZipFile(jar.toFile()).use { source ->
+                    keep.forEach { path -> check(source.getEntry(path) != null) { "Missing native library: $name!/$path" } }
+                    ZipOutputStream(Files.newOutputStream(temporary)).use { target ->
+                        val entries = source.entries()
+                        while (entries.hasMoreElements()) {
+                            val entry = entries.nextElement()
+                            if (entry.name.endsWith(".dll") || entry.name.endsWith(".so") ||
+                                entry.name.endsWith(".dylib") || entry.name.endsWith(".jnilib")) {
+                                if (entry.name !in keep) continue
+                            }
+                            val copy = ZipEntry(entry.name)
+                            copy.time = entry.time
+                            target.putNextEntry(copy)
+                            source.getInputStream(entry).use { it.copyTo(target) }
+                            target.closeEntry()
+                        }
+                    }
+                }
+                Files.move(temporary, jar, StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+    }
 }

@@ -8,6 +8,7 @@ on:
     branches: [multiversion]
     paths:
       - .github/workflows/build-forge-1201.yml
+      - build.forge.gradle.kts
 
 permissions:
   contents: write
@@ -38,7 +39,7 @@ jobs:
           if [ "$(git rev-parse HEAD)" != "$previous" ]; then
             git push origin HEAD:multiversion
           fi
-          tag="forge-1.20.1-upstream-${upstream_sha:0:12}"
+          tag="forge-1.20.1-win-linux-x64-upstream-${upstream_sha:0:12}"
           existing=$(git ls-remote --tags origin "refs/tags/$tag")
           if [ -n "$existing" ]; then
             echo 'release_needed=false' >> "$GITHUB_OUTPUT"
@@ -78,6 +79,6 @@ jobs:
           gh release create "$TAG" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$(git rev-parse HEAD)" \
-            --title "Voxy Forge 1.20.1 (upstream ${UPSTREAM_SHA:0:12})" \
-            --notes "Automatically built from m3t4f1v3/voxy@${UPSTREAM_SHA}. This build has not been validated with Noxy. The -dev.jar is for compiling dependent mods; install the other JAR in Minecraft." \
+            --title "Voxy Forge 1.20.1 Windows/Linux x64 (upstream ${UPSTREAM_SHA:0:12})" \
+            --notes "Automatically built from m3t4f1v3/voxy@${UPSTREAM_SHA} for Windows and Linux x86-64 only. This build has not been validated with Noxy. The -dev.jar is for compiling dependent mods; install the other JAR in Minecraft." \
             --prerelease
